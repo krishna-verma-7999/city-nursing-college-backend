@@ -1,4 +1,3 @@
-
 import { Types } from "mongoose";
 import { ICourse } from "../course/course.dto";
 import { IsemesterFee } from "../semester-fee/semester-fee.dto";
@@ -19,7 +18,10 @@ export const updateStudentFee = async (id: string, data: IStudentFee) => {
   return result;
 };
 
-export const editStudentFee = async (id: string, data: Partial<IStudentFee>) => {
+export const editStudentFee = async (
+  id: string,
+  data: Partial<IStudentFee>
+) => {
   const result = await StudentFeeSchema.findOneAndUpdate({ _id: id }, data);
   return result;
 };
@@ -34,19 +36,27 @@ export const getStudentFeeById = async (id: string) => {
   return result;
 };
 export const getStudentFeeByIdWithSemesterAndStudent = async (id: string) => {
-  const result = await StudentFeeSchema.findById(id).populate<{ student: IStudent, semester: IsemesterFee }>({
-    path: "student semester",
-    model: "student SemesterFee",
-  }).lean();
+  const result = await StudentFeeSchema.findById(id)
+    .populate<{ student: IStudent; semester: IsemesterFee }>({
+      path: "student semester",
+      model: "student SemesterFee",
+    })
+    .lean();
   return result;
 };
-export const getLatestStudentFeeBySemester = async (semester: string, student: string) => {
-
-  const result = await StudentFeeSchema.findOne({ semester, student }).sort({ createdAt: -1 }).lean();
+export const getLatestStudentFeeBySemester = async (
+  semester: string,
+  student: string
+) => {
+  const result = await StudentFeeSchema.findOne({ semester, student })
+    .sort({ createdAt: -1 })
+    .lean();
   return result;
 };
-export const getTotalAmountPaidByStudentForSemester = async (semester: string, student: string): Promise<number> => {
-
+export const getTotalAmountPaidByStudentForSemester = async (
+  semester: string,
+  student: string
+): Promise<number> => {
   // Aggregate the total paid amount
   const result = await StudentFeeSchema.aggregate([
     // Match the documents for the given semester and student
@@ -68,28 +78,50 @@ export const getTotalAmountPaidByStudentForSemester = async (semester: string, s
   // Return the total paid amount, or 0 if no payments exist
   return result.length > 0 ? result[0].totalPaid : 0;
 };
-export const getAllStudentFee = async ({ student, haveBalanceFees }: { student?: string; haveBalanceFees?: boolean }) => {
+export const getAllStudentFee = async ({
+  student,
+  haveBalanceFees,
+}: {
+  student?: string;
+  haveBalanceFees?: string;
+}) => {
   const query: Record<string, any> = {};
 
   if (student) {
     query.student = student;
   }
-
-  if (haveBalanceFees) {
+  console.log("Balance", haveBalanceFees);
+  if (haveBalanceFees === "true") {
     query.balanceFees = { $gt: 0 }; // Only fetch records where balanceFees is greater than 0
   }
+  console.log("query", query);
+  const result = await StudentFeeSchema.find(query)
+    .populate<{ student: IStudent }>({
+      path: "student",
+      model: "student",
+      populate: { path: "course", model: "course" }, // Populate the "course" field inside "student"
+    })
+    .populate<{ semester: IsemesterFee }>({
+      path: "semester",
+      model: "SemesterFee",
+    })
+    .sort({ createdAt: -1 })
+    .lean();
 
-  const result = await StudentFeeSchema.find(query).lean();
   return result;
 };
 
 export const getAllStudentFeeWithSemsterInfo = async () => {
-  const result = await StudentFeeSchema.find({}).populate<{ semester: IsemesterFee & { course: ICourse } }>([{
-    path: "semester",
-    populate: {
-      path: "course",
-    }
-  }]).lean();
+  const result = await StudentFeeSchema.find({})
+    .populate<{ semester: IsemesterFee & { course: ICourse } }>([
+      {
+        path: "semester",
+        populate: {
+          path: "course",
+        },
+      },
+    ])
+    .lean();
   return result;
 };
 
@@ -116,7 +148,7 @@ export const getCurrentMonthStudentFeesCount = async () => {
     },
   ]);
   return result.length > 0 ? result[0].amount : 0;
-}
+};
 export const getCurrentMonthStudentBalanceFeesCount = async () => {
   const startOfMonth = moment().startOf("month").toDate();
   const endOfMonth = moment().endOf("month").toDate();
